@@ -1,1 +1,1 @@
-rootProject.name = "SoulNetworkPlugin"
+rootProject.name = "BlissDiscord"

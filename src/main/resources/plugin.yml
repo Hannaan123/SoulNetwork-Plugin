@@ -1,6 +1,6 @@
-name: SoulNetworkPlugin
+name: BlissDiscord
 version: '${version}'
-main: me.thatonedevil.soulNetworkPlugin.SoulNetworkPlugin
+main: me.thatonedevil.blissDiscord.BlissDiscord
 api-version: '26.2'
 authors: [ ThatOneDevil ]
 website: https://thatonedevil.github.io/

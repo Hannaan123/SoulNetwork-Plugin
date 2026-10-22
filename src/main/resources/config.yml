@@ -45,16 +45,44 @@ linking:
   verifiedRole: ""
   # How long a /link code stays valid
   codeExpirySeconds: 300
-  # Console commands run once when a linked player uses /linkclaim. <player> = their name.
-  rewards: []
-  # e.g. rewards: ["give <player> diamond 5", "eco give <player> 1000"]
+  # Give the reward straight away if the player is online when they link (otherwise they use /linkclaim)
+  autoClaim: false
+  # One-time reward for linking, claimed with /linkclaim. Each player can only claim it once, even if they relink.
+  rewards:
+    # Money (needs Vault and an economy plugin)
+    money: 0
+    # XP levels
+    xpLevels: 0
+    # Items. Short form: "diamond 5". Long form:
+    #   - material: diamond_sword
+    #     amount: 1
+    #     name: "<#B026FF>&lBliss Blade"
+    #     lore: ["&7Thanks for linking!"]
+    #     enchantments: {sharpness: 3, unbreaking: 2}
+    # A full inventory drops the rest at the player's feet.
+    items: []
+    # LuckPerms groups and permissions added permanently (needs LuckPerms)
+    groups: []
+    permissions: []
+    # Console commands. <player> name, <uuid> Minecraft UUID, <discord> Discord user id
+    commands: []
 
-# Bot activity in the Discord member list. <online>, <max>, <ip>, <server> are replaced.
+# The bot's presence (rich presence) in the Discord member list.
 botStatus:
   enabled: true
-  # watching, playing, listening, competing or custom
-  type: "watching"
-  text: "<online> players on <ip>"
+  # The coloured dot next to the bot: online, idle, dnd or invisible
+  onlineStatus: "online"
+  # How often the placeholders are refreshed (seconds, 5-300). Discord is only updated when the text changes.
+  updateSeconds: 10
+  # With more than one activity, the bot switches to the next one every this many seconds (10-3600).
+  rotateSeconds: 30
+  # type: watching, playing, listening, competing, streaming or custom
+  # Placeholders: <online>, <max>, <ip>, <server>, <store>, <tps>, <linked>, <uptime>
+  activities:
+    - type: "watching"
+      text: "<online> players on <ip>"
+  # Link used by "streaming" activities (must be a twitch.tv or youtube.com link to show the purple Live badge)
+  streamUrl: "https://twitch.tv/discord"
 
 # Prefixes for the text versions of the Discord commands (!ip, ?stats, ...)
 prefixCommands: ["!", "?"]
@@ -80,6 +108,128 @@ bundling:
   # Messages to the same Discord channel within this many milliseconds are combined into one,
   # so busy chat never hits Discord's rate limits. The first message after a quiet period is instant.
   windowMs: 1000
+
+# Settings for every command. Any command can be turned off with enabled: false.
+# Disabled in-game commands are hidden from tab-complete; disabled Discord commands are removed
+# from Discord's slash command list (after /bliss reload or a restart).
+# In-game messages use & colour codes or MiniMessage, plus <primary>/<secondary> from messages.colour.
+# <label> is the command name the player typed. Set a message to "" to send nothing.
+commands:
+  disabledMessage: "&cThat command is disabled."
+  playersOnly: "&cOnly players can use this command."
+
+  minecraft:
+    # /bliss reload (alias /configReload)
+    bliss:
+      enabled: true
+      reloaded: "&aConfig reloaded!"
+      usage: "&cUsage: /<label> reload"
+      noPermission: "&cYou don't have permission to do that."
+    # The /link, /unlink and /linkclaim messages are under messages.linking
+    link:
+      enabled: true
+    unlink:
+      enabled: true
+    linkclaim:
+      enabled: true
+    # /sc <message>
+    sc:
+      enabled: true
+      usage: "<#FFA500>&lSTAFFCHAT &8» &cUsage: /<label> <message>"
+      noPermission: "<#FFA500>&lSTAFFCHAT &8» &cInsufficient permissions!"
+    # /sctoggle
+    sctoggle:
+      enabled: true
+      toggledOn: "<#FFA500>&lSTAFFCHAT &8» &aStaff chat enabled"
+      toggledOff: "<#FFA500>&lSTAFFCHAT &8» &cStaff chat disabled"
+      noPermission: "<#FFA500>&lSTAFFCHAT &8» &cInsufficient permissions!"
+    # /announcepurchase <player> <price> <item...>
+    announcepurchase:
+      enabled: true
+      usage: "&cUsage: /<label> <player> <price> <item...>"
+      channelMissing: "&cStore channel not found. Check channels.store in config.yml."
+      sent: "&2Successfully sent the message to the discord."
+    # /uuid [player]
+    uuid:
+      enabled: true
+      usage: "&cUsage: /<label> <player>"
+      notFound: "&cThat player has never joined the server."
+      # <player>, <uuid>
+      result: "&7<player>'s UUID: <click:copy_to_clipboard:'<uuid>'><hover:show_text:'Click to copy'>&f<uuid>"
+
+  # Discord commands. Plain Discord markdown, no colour codes.
+  #   description:   shown in Discord's slash command list (max 100 characters)
+  #   ephemeral:     true = only the person who ran the command sees the reply
+  #   prefixAliases: text versions using prefixCommands, e.g. !ip (ip, store, stats and online only). [] = slash only.
+  discord:
+    # Reply when a command fails unexpectedly
+    error: "Something went wrong running that command."
+    disabled: "❌ That command is disabled."
+    ip:
+      enabled: true
+      description: "Server IP"
+      ephemeral: false
+      prefixAliases: ["ip"]
+      # <ip>
+      reply: "🌐 **IP:** `<ip>`"
+      notSet: "No server IP is configured."
+    store:
+      enabled: true
+      description: "Server store link"
+      ephemeral: false
+      prefixAliases: ["store"]
+      # <url>
+      reply: "🛒 **Store:** <url>"
+      notSet: "No store is configured."
+    stats:
+      enabled: true
+      description: "Server statistics"
+      ephemeral: false
+      prefixAliases: ["stats"]
+    online:
+      enabled: true
+      description: "Who's online right now"
+      ephemeral: false
+      prefixAliases: ["online", "players"]
+    player:
+      enabled: true
+      description: "Look up a player's stats"
+      ephemeral: false
+      # <name>
+      notFound: "❌ `<name>` has never joined the server."
+    profile:
+      enabled: true
+      description: "Stats of a Discord user's linked Minecraft account"
+      ephemeral: false
+      # <user>
+      notLinked: "❌ <user> hasn't linked a Minecraft account. Use `/link` in-game."
+    # Also controls the link panel's "Click to link" button
+    link:
+      enabled: true
+      description: "Link your Minecraft account"
+      ephemeral: true
+      # <player>
+      alreadyLinked: "❌ You're already linked to **<player>**! Use `/unlink` first."
+      invalidCode: "❌ Invalid or expired code! Run `/link` in Minecraft to get a new one."
+    unlink:
+      enabled: true
+      description: "Unlink your Minecraft account"
+      ephemeral: true
+      # <player>
+      success: "✅ Unlinked from **<player>**."
+      notLinked: "You don't have a linked Minecraft account."
+    # Admin only
+    linkembed:
+      enabled: true
+      description: "Post the account linking panel in this channel"
+      noPermission: "❌ You do not have permission to use this command!"
+      posted: "✅ Link panel posted."
+      # <error>
+      failed: "❌ Couldn't post here: <error>"
+      button: "Click to link"
+      modalTitle: "Link Your Minecraft Account"
+      inputLabel: "Put code here"
+      inputPlaceholder: "Enter your 6-character code from /link"
 
 placeholders:
   # PlaceholderAPI placeholder shown as "Voteparty" in /stats. Leave empty to hide.
