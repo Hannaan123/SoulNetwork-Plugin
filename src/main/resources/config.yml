@@ -1,19 +1,89 @@
+# Discord bot token (Developer Portal -> Bot -> Reset Token). Never share this.
 token: ""
-
-serverName: "LifeSteal"
-
-# Must be set to the guild id of the discord server
-guildId: ""
-# Must be set to the channel id of the server chat channel
-serverChatChannel: ""
 
 jdaEnabled: true
 serverChatToggle: true
+
+# Must be set to the guild (server) id of the discord server
+guildId: ""
+
+branding:
+  name: "Bliss"
+  ip: "bliss.minehut.gg"
+  storeUrl: "https://store.purebliss.fun"
+  # Permanent image URLs for the embeds (Discord attachment links expire).
+  # Leave empty to use the Bliss images from the plugin's GitHub repo (branding/ folder).
+  # Small round icon next to embed titles and footers
+  logoUrl: ""
+  # Logo in the top-right corner of embeds
+  thumbnailUrl: ""
+  # Wide banner at the bottom of the link panel, store and server-start embeds
+  bannerUrl: ""
+  # Main embed color. Joins, leaves, deaths etc. use lighter/darker shades of it.
+  color: "#B026FF"
+  # Shown as "online/max" in /stats and /online. 0 = use the server's max players.
+  maxPlayers: 0
+
+channels:
+  # Two-way chat bridge (also gets join/leave and start/stop embeds)
+  serverChat: ""
+  # Two-way staff chat
+  staffChat: "1429250158595670016"
+  # Commands run by players with bliss.commandlog
+  commandLog: "1429249943792652448"
+  # Store purchase announcements (/announcepurchase)
+  store: "1428785009652793410"
 
 webhook:
   # Must be set to the webhook url of the server chat channel
   url: ""
   webhookId: ""
+
+linking:
+  # Role given to members when they link (and removed when they unlink). Leave empty to disable.
+  # The bot needs Manage Roles and its own role must be above this one.
+  verifiedRole: ""
+  # How long a /link code stays valid
+  codeExpirySeconds: 300
+  # Console commands run once when a linked player uses /linkclaim. <player> = their name.
+  rewards: []
+  # e.g. rewards: ["give <player> diamond 5", "eco give <player> 1000"]
+
+# Bot activity in the Discord member list. <online>, <max>, <ip>, <server> are replaced.
+botStatus:
+  enabled: true
+  # watching, playing, listening, competing or custom
+  type: "watching"
+  text: "<online> players on <ip>"
+
+# Prefixes for the text versions of the Discord commands (!ip, ?stats, ...)
+prefixCommands: ["!", "?"]
+
+commandLog:
+  # Commands that are never logged. Matches the command name or the start of the command,
+  # so "kit" also covers "/kit celestial" and "/essentials:kit arcane".
+  ignore: ["spawn", "shop", "daily", "home", "warp", "tpa", "msg", "help", "rules", "kits", "sellall", "rtp", "kit", "vote", "money", "sell"]
+
+# Game events posted to the server chat channel
+discordEvents:
+  join: true
+  # "X joined for the first time!" instead of the normal join embed
+  firstJoin: true
+  leave: true
+  death: true
+  # Only advancements the game announces in chat (follows the announceAdvancements gamerule)
+  advancement: true
+  # "Server started" / "Server stopped"
+  serverStatus: true
+
+bundling:
+  # Messages to the same Discord channel within this many milliseconds are combined into one,
+  # so busy chat never hits Discord's rate limits. The first message after a quiet period is instant.
+  windowMs: 1000
+
+placeholders:
+  # PlaceholderAPI placeholder shown as "Voteparty" in /stats. Leave empty to hide.
+  voteParty: "%votingplugin_votepartyvotesneeded%"
 
 messages:
   # <roleColor> color of role
@@ -28,6 +98,28 @@ messages:
   # U can use html markdown for this
   mcToDiscordMessage: "<message>"
 
+  # <player> sender, <message> text
+  staffChat: "<#FFA500>&lSTAFFCHAT &8» &f<player>: &f<message>"
+  # <discordName> sender, <message> text
+  staffChatFromDiscord: "&8[<#4498DB>&lᴅɪѕᴄᴏʀᴅ&8] <#FFA500>&lSTAFFCHAT &8» &f<discordName>: &f<message>"
+
+  # <primary> and <secondary> in the linking messages are replaced with these
+  colour:
+    primary: "<color:#FFA500>"
+    secondary: "<color:#FFD58A>"
+
+  linking:
+    # <code> the link code. The whole message is clickable to copy the code.
+    linkCodeMessage: "&r<secondary>Your linking code is <primary><code><secondary>. Click to copy it, then click <primary>Click to link<secondary> in our Discord (or use <primary>/link <code><secondary>)!"
+    # <player> player name. Sent to everyone in-game.
+    linkedBroadcast: "&r<primary><player> <secondary>has successfully linked to discord! <primary>&o(/link)"
+    linkedError: "&r<secondary>You are already <primary>linked<secondary> to discord, use <primary>/linkclaim <secondary>for rewards!"
+    notLinkedError: "&r<secondary>You are not <primary>linked<secondary> to discord! Use <primary>/link<secondary> first."
+    linkCodeExpired: "&r<secondary>Your linking code has expired! Use <primary>/link<secondary> to get a new one."
+    unlinked: "&r<secondary>Your Discord account has been <primary>unlinked<secondary>."
+    claimSuccess: "&r<secondary>You claimed your <primary>linking reward<secondary>!"
+    alreadyClaimed: "&r<secondary>You already claimed your <primary>linking reward<secondary>."
+
   # <badWord> bad word that was blocked
   chatFilter:
-    blockedMessage: "<color:#F11642>&l▍ SoulNetwork &r<color:#EF5B80>The message was blocked because it contains <color:#F11642><badWord>"
+    blockedMessage: "<color:#F11642>&l▍ Bliss &r<color:#EF5B80>The message was blocked because it contains <color:#F11642><badWord>"

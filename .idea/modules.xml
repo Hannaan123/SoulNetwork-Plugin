@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/SoulNetwork-Plugin.SoulNetworkPlugin.main.iml" filepath="$PROJECT_DIR$/.idea/modules/SoulNetwork-Plugin.SoulNetworkPlugin.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/SoulNetworkPlugin.main.iml" filepath="$PROJECT_DIR$/.idea/modules/SoulNetworkPlugin.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/SoulNetworkPlugin.test.iml" filepath="$PROJECT_DIR$/.idea/modules/SoulNetworkPlugin.test.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/SoulzStealLinking.main.iml" filepath="$PROJECT_DIR$/.idea/modules/SoulzStealLinking.main.iml" />

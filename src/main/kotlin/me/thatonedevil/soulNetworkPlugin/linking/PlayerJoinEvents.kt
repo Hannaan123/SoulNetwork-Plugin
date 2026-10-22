@@ -1,166 +1,81 @@
 package me.thatonedevil.soulNetworkPlugin.linking
 
-import me.thatonedevil.soulNetworkPlugin.JdaManager.jdaEnabled
-import me.thatonedevil.soulNetworkPlugin.JdaManager.serverChat
-import me.thatonedevil.soulNetworkPlugin.SoulNetworkPlugin.Companion.instance
-import net.dv8tion.jda.api.EmbedBuilder
-import net.dv8tion.jda.api.entities.MessageEmbed
-import org.bukkit.Bukkit
-import org.bukkit.entity.Player
+import io.papermc.paper.advancement.AdvancementDisplay
+import me.thatonedevil.soulNetworkPlugin.SoulNetworkPlugin.Companion.settings
+import me.thatonedevil.soulNetworkPlugin.Utils.formatDuration
+import me.thatonedevil.soulNetworkPlugin.Utils.playerAvatarUrl
+import me.thatonedevil.soulNetworkPlugin.discord.DiscordBot
+import me.thatonedevil.soulNetworkPlugin.discord.Embeds
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
+import net.kyori.adventure.translation.GlobalTranslator
 import org.bukkit.event.EventHandler
+import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
+import org.bukkit.event.entity.PlayerDeathEvent
+import org.bukkit.event.player.PlayerAdvancementDoneEvent
 import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerQuitEvent
-import java.awt.Color
-import java.time.Instant
-import java.util.*
-import java.util.concurrent.LinkedBlockingQueue
+import java.util.Locale
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
+/** Join/leave, first join, death and advancement embeds in the server chat channel. */
 class PlayerJoinEvents : Listener {
 
-    private val timeJoined: HashMap<UUID, Long> = hashMapOf()
+    private val timeJoined = ConcurrentHashMap<UUID, Long>()
 
-    companion object {
-        private val embedQueue = LinkedBlockingQueue<MessageEmbed>()
-        private const val SEND_DELAY = 2500L
-        private var isProcessingQueue = false
-        private var lastEmbedSentTime = 0L
-        private var backoffTime = 2500L
-        private const val MAX_BACKOFF_TIME = 60000L
+    /** Death and advancement messages are translatable, so render them to English first. */
+    private fun plain(component: Component): String =
+        PlainTextComponentSerializer.plainText().serialize(GlobalTranslator.render(component, Locale.US))
 
-        fun startEmbedDispatcher() {
-            if (isProcessingQueue) return
-            isProcessingQueue = true
-
-            Bukkit.getScheduler().runTaskTimerAsynchronously(
-                instance,
-                createEmbedDispatcherRunnable(),
-                0L,
-                20L
-            )
-        }
-
-        private fun createEmbedDispatcherRunnable(): Runnable = Runnable {
-            if (shouldDelayNextEmbed()) return@Runnable
-
-            val embed = embedQueue.poll() ?: return@Runnable
-            sendEmbedToDiscord(embed)
-        }
-
-        private fun shouldDelayNextEmbed(): Boolean {
-            val currentTime = System.currentTimeMillis()
-            return currentTime - lastEmbedSentTime < backoffTime
-        }
-
-        private fun sendEmbedToDiscord(embed: MessageEmbed) {
-            try {
-                serverChat?.sendMessageEmbeds(embed)?.queue(
-                    { _ -> handleSuccessfulSend() },
-                    { error -> handleSendError(error, embed) }
-                )
-            } catch (e: Exception) {
-                instance.logger.warning("Exception while sending Discord embed: ${e.message}")
-                lastEmbedSentTime = System.currentTimeMillis()
-            }
-        }
-
-        private fun handleSuccessfulSend() {
-            lastEmbedSentTime = System.currentTimeMillis()
-            reduceBackoffTime()
-        }
-
-        private fun reduceBackoffTime() {
-            if (backoffTime > SEND_DELAY) {
-                backoffTime = SEND_DELAY.coerceAtLeast(backoffTime / 2)
-            }
-        }
-
-        private fun handleSendError(error: Throwable, embed: MessageEmbed) {
-            if (error.toString().contains("429")) {
-                handleRateLimit(embed)
-            } else {
-                instance.logger.warning("Error sending Discord embed: ${error.message}")
-            }
-            lastEmbedSentTime = System.currentTimeMillis()
-        }
-
-        private fun handleRateLimit(embed: MessageEmbed) {
-            embedQueue.offer(embed)
-            increaseBackoffTime()
-            instance.logger.warning("Discord rate limit hit! Backing off for ${backoffTime/1000} seconds.")
-        }
-
-        private fun increaseBackoffTime() {
-            backoffTime *= 2
-            if (backoffTime > MAX_BACKOFF_TIME) backoffTime = MAX_BACKOFF_TIME
-        }
-    }
-
-    @EventHandler
-    fun onPlayerJoinEvent(event: PlayerJoinEvent) {
-        if (!jdaEnabled) return
-
+    @EventHandler(priority = EventPriority.MONITOR)
+    fun onPlayerJoin(event: PlayerJoinEvent) {
         val player = event.player
-        val joinEmbed = createJoinEmbed(player)
-
-        embedQueue.offer(joinEmbed)
-        startEmbedDispatcher()
-
         timeJoined[player.uniqueId] = System.currentTimeMillis()
-    }
+        if (!settings.jdaEnabled) return
 
-    private fun createJoinEmbed(player: Player): MessageEmbed {
-        return EmbedBuilder()
-            .setColor(Color.GREEN)
-            .setAuthor("${player.name} joined the server!", null, getPlayerAvatarUrl(player))
-            .setTimestamp(Instant.now())
-            .build()
-    }
-
-    @EventHandler
-    fun onPlayerQuitEvent(event: PlayerQuitEvent) {
-        if (!jdaEnabled) return
-
-        val player = event.player
-        val playTimeMillis = getPlayTime(player)
-        val playTimeFormatted = formatPlayTime(playTimeMillis)
-
-        val leaveEmbed = createLeaveEmbed(player, playTimeFormatted)
-
-        embedQueue.offer(leaveEmbed)
-        startEmbedDispatcher()
-
-        timeJoined.remove(player.uniqueId)
-    }
-
-    private fun getPlayTime(player: Player): Long {
-        return System.currentTimeMillis() - (timeJoined[player.uniqueId] ?: System.currentTimeMillis())
-    }
-
-    private fun createLeaveEmbed(player: Player, playTime: String): MessageEmbed {
-        return EmbedBuilder()
-            .setColor(Color.RED)
-            .setAuthor("${player.name} left the server!", null, getPlayerAvatarUrl(player))
-            .setDescription("**Time played:** ``$playTime``\n**IP: soulnetwork.minehut.gg**")
-            .build()
-    }
-
-    private fun getPlayerAvatarUrl(player: Player): String {
-        return "https://cravatar.eu/head/${player.uniqueId}.png"
-    }
-
-    private fun formatPlayTime(milliseconds: Long): String {
-        val totalSeconds = milliseconds / 1000
-        val days = totalSeconds / (24 * 3600)
-        val hours = (totalSeconds % (24 * 3600)) / 3600
-        val minutes = (totalSeconds % 3600) / 60
-        val seconds = totalSeconds % 60
-
-        return when {
-            days > 0 -> "${days}d, ${hours}h, ${minutes}m and ${seconds}s"
-            hours > 0 -> "${hours}h, ${minutes}m and ${seconds}s"
-            minutes > 0 -> "${minutes}m and ${seconds}s"
-            else -> "${seconds}s"
+        val avatar = playerAvatarUrl(player)
+        when {
+            !player.hasPlayedBefore() && settings.eventFirstJoin ->
+                DiscordBot.serverChatEmbeds.offer(Embeds.playerFirstJoin(player.name, avatar))
+            settings.eventJoin ->
+                DiscordBot.serverChatEmbeds.offer(Embeds.playerJoined(player.name, avatar))
         }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    fun onPlayerQuit(event: PlayerQuitEvent) {
+        val player = event.player
+        val joined = timeJoined.remove(player.uniqueId) ?: System.currentTimeMillis()
+        if (!settings.jdaEnabled || !settings.eventLeave) return
+
+        val playTime = formatDuration(System.currentTimeMillis() - joined)
+        DiscordBot.serverChatEmbeds.offer(Embeds.playerLeft(player.name, playerAvatarUrl(player), playTime))
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    fun onDeath(event: PlayerDeathEvent) {
+        if (!settings.jdaEnabled || !settings.eventDeath) return
+        // Null when another plugin or the showDeathMessages gamerule hides it.
+        val message = event.deathMessage()?.let(::plain)?.takeIf { it.isNotBlank() } ?: return
+        DiscordBot.serverChatEmbeds.offer(Embeds.playerDied(message, playerAvatarUrl(event.player)))
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    fun onAdvancement(event: PlayerAdvancementDoneEvent) {
+        if (!settings.jdaEnabled || !settings.eventAdvancement) return
+        // message() is null unless the game announces it in chat (skips recipes, hidden ones, gamerule off).
+        if (event.message() == null) return
+        val display = event.advancement.display ?: return
+
+        val frame = when (display.frame()) {
+            AdvancementDisplay.Frame.CHALLENGE -> "challenge"
+            AdvancementDisplay.Frame.GOAL -> "goal"
+            else -> "task"
+        }
+        DiscordBot.serverChatEmbeds.offer(Embeds.advancement(
+            event.player.name, plain(display.title()), plain(display.description()), frame, playerAvatarUrl(event.player)
+        ))
     }
 }

@@ -14,6 +14,10 @@ class ChatFilter {
     @Volatile
     private var compiledPatterns: Map<String, Regex> = emptyMap()
 
+    /** Every word in one regex, so a clean message (the common case) is checked in a single pass. */
+    @Volatile
+    private var combined: Regex? = null
+
     private fun toRegexPattern(word: String): Regex {
         val parts = buildList {
             for (c in word) {
@@ -30,7 +34,8 @@ class ChatFilter {
             }
         }
 
-        return Regex(".*${parts.joinToString("")}.*", RegexOption.IGNORE_CASE)
+        // No ".*" around it: containsMatchIn already searches, and the wrappers cause heavy backtracking.
+        return Regex(parts.joinToString(""), RegexOption.IGNORE_CASE)
     }
 
     private fun readBadWordsAsync(): CompletableFuture<List<String>> {
@@ -63,6 +68,8 @@ class ChatFilter {
             }
             badWords = words
             compiledPatterns = compiled
+            combined = if (compiled.isEmpty()) null
+                else Regex(compiled.values.joinToString("|") { "(?:${it.pattern})" }, RegexOption.IGNORE_CASE)
             println("Reloaded bad words. Total: ${words.size}")
         }.exceptionally {
             println("Reload failed: ${it.message}")
@@ -71,6 +78,8 @@ class ChatFilter {
     }
 
     fun findBadWord(message: String): String? {
+        val all = combined ?: return null
+        if (!all.containsMatchIn(message)) return null
         return compiledPatterns.entries.firstOrNull { (_, regex) ->
             regex.containsMatchIn(message)
         }?.key

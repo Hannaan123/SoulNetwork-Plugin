@@ -1,11 +1,58 @@
 name: SoulNetworkPlugin
-version: '1.0'
+version: '${version}'
 main: me.thatonedevil.soulNetworkPlugin.SoulNetworkPlugin
-api-version: '1.21'
+api-version: '26.2'
 authors: [ ThatOneDevil ]
 website: https://thatonedevil.github.io/
+softdepend: [ LuckPerms, PlaceholderAPI, Vault ]
 
 commands:
-  configReload:
-    description: reload config
-    permission: SoulNetworkPlugin.configReload
+  bliss:
+    description: Plugin admin commands (/bliss reload)
+    usage: /bliss reload
+    aliases: [ configReload ]
+  link:
+    description: Get a code to link your Discord account
+    permission: bliss.link
+  unlink:
+    description: Unlink your Discord account
+    permission: bliss.link
+  linkclaim:
+    description: Claim your reward for linking your Discord account
+    permission: bliss.link
+  sc:
+    description: Send a message to staff chat
+    usage: /sc <message>
+    aliases: [ staffchat ]
+  sctoggle:
+    description: Send all of your chat messages to staff chat
+    aliases: [ staffchattoggle, staffchatoggle ]
+  announcepurchase:
+    description: Announce a store purchase in Discord (run by Tebex)
+    usage: /announcepurchase <player> <price> <item...>
+    permission: bliss.announce
+    aliases: [ announcediscord ]
+  uuid:
+    description: Show a player's UUID
+    usage: /uuid [player]
+    permission: bliss.uuid
+
+permissions:
+  bliss.admin:
+    description: Use /bliss reload
+    default: op
+  bliss.link:
+    description: Use /link and /unlink
+    default: true
+  bliss.staffchat:
+    description: Read and send staff chat
+    default: op
+  bliss.commandlog:
+    description: Commands run by this player are logged to Discord
+    default: false
+  bliss.announce:
+    description: Use /announcepurchase
+    default: op
+  bliss.uuid:
+    description: Use /uuid
+    default: op

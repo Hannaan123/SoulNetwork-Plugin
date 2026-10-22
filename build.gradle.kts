@@ -1,6 +1,6 @@
 plugins {
-    kotlin("jvm") version "2.1.20-RC2"
-    id("com.github.johnrengelman.shadow") version "9.0.2"
+    kotlin("jvm") version "2.4.21"
+    id("com.gradleup.shadow") version "9.6.1"
 }
 
 group = "me.thatonedevil"
@@ -17,13 +17,20 @@ repositories {
     maven("https://jitpack.io") {
         name = "jitpack"
     }
+    maven("https://repo.extendedclip.com/releases/") {
+        name = "placeholderapi"
+    }
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:26.2.build.134-stable")
     compileOnly("net.luckperms:api:5.4")
+    compileOnly("me.clip:placeholderapi:2.12.3")
+    compileOnly("com.github.MilkBowl:VaultAPI:1.7.1") {
+        exclude(group = "org.bukkit")
+    }
 
-    implementation("net.dv8tion:JDA:5.3.0"){
+    implementation("net.dv8tion:JDA:5.6.1"){
         exclude(module="opus-java")
         exclude(module="tink")
     }
@@ -33,7 +40,7 @@ dependencies {
     implementation("ch.qos.logback:logback-classic:1.5.6")
 }
 
-val targetJavaVersion = 21
+val targetJavaVersion = 25
 kotlin {
     jvmToolchain(targetJavaVersion)
 }

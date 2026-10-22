@@ -1,72 +1,49 @@
 package me.thatonedevil.soulNetworkPlugin.chat
 
-import me.thatonedevil.soulNetworkPlugin.JdaManager.jdaEnabled
-import me.thatonedevil.soulNetworkPlugin.JdaManager.serverChat
-import me.thatonedevil.soulNetworkPlugin.JdaManager.serverChatToggle
-import me.thatonedevil.soulNetworkPlugin.SoulNetworkPlugin.Companion.instance
+import me.thatonedevil.soulNetworkPlugin.SoulNetworkPlugin.Companion.settings
 import me.thatonedevil.soulNetworkPlugin.Utils.convertLegacyToMiniMessage
+import me.thatonedevil.soulNetworkPlugin.Utils.escapeTags
 import net.dv8tion.jda.api.entities.Member
-import net.dv8tion.jda.api.entities.Role
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent
 import net.dv8tion.jda.api.hooks.ListenerAdapter
 import org.bukkit.Bukkit
 import java.awt.Color
 
+/** Relays Discord messages from the server chat and staff chat channels into the game. */
 class DiscordToMc : ListenerAdapter() {
 
     override fun onMessageReceived(event: MessageReceivedEvent) {
-        if (!shouldProcessMessage(event)) return
-
-        val text = event.message.contentRaw
+        if (!settings.jdaEnabled || !event.isFromGuild) return
+        // Ignore our own webhook and other bots/webhooks so messages don't echo back.
+        if (event.author.isBot || event.isWebhookMessage || event.author.id == settings.webhookId) return
         val member = event.member ?: return
 
-        val messageData = extractMessageData(member, text)
-        sendToMinecraft(messageData)
+        val text = buildString {
+            append(event.message.contentDisplay)
+            if (event.message.attachments.isNotEmpty()) {
+                if (isNotEmpty()) append(' ')
+                append("[attachment]")
+            }
+        }.trim()
+        if (text.isEmpty()) return
+
+        when (event.channel.id) {
+            settings.staffChatChannel -> StaffChat.sendFromDiscord(member.effectiveName, text)
+            settings.serverChatChannel -> if (settings.serverChatToggle) sendToServerChat(member, text)
+        }
     }
 
-    private fun shouldProcessMessage(event: MessageReceivedEvent): Boolean {
-        if (!jdaEnabled || !serverChatToggle) return false
-
-        val authorID = event.author.id
-        val channelID = event.channel.id
-
-        // Ignore webhook messages or bot messages
-        if (authorID == instance.config.getString("webhook.webhookId") || event.author.isBot) return false
-
-        // Only process messages from the designated chat channel
-        if (channelID != serverChat?.id) return false
-
-        return true
-    }
-
-    private fun extractMessageData(member: Member, text: String): MessageData {
+    private fun sendToServerChat(member: Member, text: String) {
         val role = member.roles.firstOrNull()
-        val discordName = member.user.name
-        val roleColor = formatRoleColor(role?.color)
-        val roleName = role?.name ?: ""
+        val formatted = settings.discordToMcMessage
+            .replace("<roleColor>", "<color:${formatRoleColor(role?.color)}>")
+            .replace("<roleName>", escapeTags(role?.name ?: ""))
+            .replace("<discordName>", escapeTags(member.effectiveName))
+            .replace("<text>", escapeTags(text))
 
-        return MessageData(roleColor, roleName, discordName, text)
+        Bukkit.broadcast(convertLegacyToMiniMessage(formatted))
     }
 
-    private fun formatRoleColor(color: Color?): String {
-        return color?.let { String.format("#%02X%02X%02X", it.red, it.green, it.blue) } ?: "#FFFFFF"
-    }
-
-    private fun sendToMinecraft(data: MessageData) {
-        val rawMessage = instance.config.getString("messages.discordToMcMessage")!!
-        val formattedMessage = rawMessage
-            .replace("<roleColor>", "<color:${data.roleColor}>")
-            .replace("<roleName>", data.roleName)
-            .replace("<discordName>", data.discordName)
-            .replace("<text>", data.text)
-
-        Bukkit.broadcast(convertLegacyToMiniMessage(formattedMessage))
-    }
-
-    private data class MessageData(
-        val roleColor: String,
-        val roleName: String,
-        val discordName: String,
-        val text: String
-    )
+    private fun formatRoleColor(color: Color?): String =
+        color?.let { String.format("#%02X%02X%02X", it.red, it.green, it.blue) } ?: "#FFFFFF"
 }
